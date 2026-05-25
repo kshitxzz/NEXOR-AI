@@ -16,6 +16,21 @@ export const supabase = isSupabaseConfigured
     })
   : null;
 
+/** Full URL where Supabase sends users after Google/email OAuth (must match Supabase Redirect URLs). */
 export function getAuthRedirectUrl() {
-  return `${window.location.origin}/auth/callback`;
+  const configured = (import.meta.env.VITE_SITE_URL || '').trim().replace(/\/$/, '');
+  const origin =
+    configured ||
+    (typeof window !== 'undefined' ? window.location.origin : '');
+
+  if (!origin) {
+    return '/auth/callback';
+  }
+
+  // Must be absolute — missing https:// in Supabase Site URL causes redirects to supabase.co/your-domain
+  if (!/^https?:\/\//i.test(origin)) {
+    return `https://${origin}/auth/callback`;
+  }
+
+  return `${origin}/auth/callback`;
 }

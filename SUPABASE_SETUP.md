@@ -28,9 +28,24 @@
 4. Paste the Google **Client ID** and **Client Secret** into Supabase Google provider settings and save.
 
 ### Redirect URLs (required for Google)
-Go to **Authentication → URL Configuration** and set:
+
+Go to **Authentication → URL Configuration**.
+
+**Important:** Every URL must start with `https://` (or `http://` for local dev).  
+If you enter `nexorai-app.vercel.app` without `https://`, Google login will fail with `{"error":"requested path is invalid"}` and redirect to `supabase.co/nexorai-app.vercel.app`.
+
+**Local development:**
 - **Site URL:** `http://localhost:5173`
-- **Redirect URLs:** add `http://localhost:5173/auth/callback`
+- **Redirect URLs:** `http://localhost:5173/auth/callback`
+
+**Production (Vercel):**
+- **Site URL:** `https://nexorai-app.vercel.app` (your real Vercel URL)
+- **Redirect URLs:** add these exactly:
+  - `https://nexorai-app.vercel.app/auth/callback`
+  - `https://nexorai-app.vercel.app/**` (optional wildcard)
+
+In **Vercel → Environment Variables**, also set:
+- `VITE_SITE_URL` = `https://nexorai-app.vercel.app` (same as Site URL, no trailing slash)
 
 ## 4. Get API keys
 
