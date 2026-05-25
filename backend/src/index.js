@@ -11,14 +11,30 @@ import userRouter from './routes/user.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Always load .env from backend/ regardless of cwd when starting the server
 dotenv.config({ path: path.join(__dirname, '../.env') });
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const FRONTEND_URL = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+
+function getAllowedOrigins() {
+  const extra = (process.env.CORS_ORIGINS || '')
+    .split(',')
+    .map((o) => o.trim().replace(/\/$/, ''))
+    .filter(Boolean);
+  return [...new Set([FRONTEND_URL, ...extra])];
+}
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const HOST = process.env.HOST || '0.0.0.0';
 
 app.use(
   cors({
-    origin: FRONTEND_URL,
+    origin(origin, callback) {
+      const allowed = getAllowedOrigins();
+      if (!origin || allowed.includes(origin.replace(/\/$/, ''))) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS blocked: ${origin}`));
+      }
+    },
     credentials: true,
   })
 );
@@ -76,7 +92,8 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`NexorAI Backend running on http://localhost:${PORT}`);
-  console.log(`Open the app at ${FRONTEND_URL}`);
+app.listen(PORT, HOST, () => {
+  console.log(`NexorAI Backend running on http://${HOST}:${PORT}`);
+  console.log(`CORS allowed: ${getAllowedOrigins().join(', ')}`);
+  console.log(`Frontend: ${FRONTEND_URL}`);
 });

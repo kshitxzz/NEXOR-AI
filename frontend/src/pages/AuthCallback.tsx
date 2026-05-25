@@ -19,6 +19,23 @@ export default function AuthCallback() {
     const client = supabase;
     const finish = async () => {
       const params = new URLSearchParams(window.location.search);
+      const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+      const oauthError =
+        params.get('error_description') ||
+        params.get('error') ||
+        hashParams.get('error_description') ||
+        hashParams.get('error');
+
+      if (oauthError) {
+        setMessage(
+          oauthError.includes('improperly formatted')
+            ? 'Supabase Site URL is wrong. Set Site URL to https://nexorai-app.vercel.app in Supabase → Authentication → URL Configuration.'
+            : decodeURIComponent(oauthError.replace(/\+/g, ' '))
+        );
+        setTimeout(() => navigate('/login', { replace: true }), 5000);
+        return;
+      }
+
       const code = params.get('code');
 
       try {
