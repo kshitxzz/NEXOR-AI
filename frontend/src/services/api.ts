@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || '';
+import { API_NOT_CONFIGURED_MSG, isApiConfigured, resolveApiUrl } from '../utils/apiConfig';
 
 export interface UserPlan {
   plan: 'free' | 'pro';
@@ -33,12 +33,42 @@ async function apiFetch<T>(path: string, options: RequestInit = {}, authRequired
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers,
-  });
+  if (import.meta.env.PROD && !isApiConfigured() && path.startsWith('/api')) {
+    const err = new Error(API_NOT_CONFIGURED_MSG) as Error & { status?: number };
+    err.status = 503;
+    throw err;
+  }
 
-  const data = await res.json().catch(() => ({}));
+  let res: Response;
+  try {
+    res = await fetch(resolveApiUrl(path), {
+      ...options,
+      headers,
+    });
+  } catch {
+    const err = new Error(
+      isApiConfigured()
+        ? 'Cannot reach the API server. Check that the backend is running and CORS allows this site.'
+        : API_NOT_CONFIGURED_MSG
+    ) as Error & { status?: number };
+    err.status = 503;
+    throw err;
+  }
+
+  const contentType = res.headers.get('content-type') || '';
+  const isJson = contentType.includes('application/json');
+
+  const data = isJson ? await res.json().catch(() => ({})) : {};
+
+  if (!isJson) {
+    const err = new Error(
+      import.meta.env.PROD && !isApiConfigured()
+        ? API_NOT_CONFIGURED_MSG
+        : 'Server returned an invalid response. The API URL may be wrong or the backend is down.'
+    ) as Error & { status?: number };
+    err.status = res.status || 502;
+    throw err;
+  }
 
   if (!res.ok) {
     const err = new Error(data.message || data.error || 'Request failed') as Error & {

@@ -9,6 +9,7 @@ import {
 } from '../services/api';
 import { useUser } from '../context/UserContext';
 import { openCashfreeCheckout } from '../utils/cashfreeCheckout';
+import { API_NOT_CONFIGURED_MSG, isApiConfigured } from '../utils/apiConfig';
 import './Pricing.css';
 
 export default function Pricing() {
@@ -21,7 +22,13 @@ export default function Pricing() {
 
   useEffect(() => {
     fetchPaymentPlans()
-      .then(setPaymentPlans)
+      .then((data) => {
+        if (data?.plans?.pro_monthly) {
+          setPaymentPlans(data);
+        } else {
+          throw new Error('Invalid plans response');
+        }
+      })
       .catch(() => {
         setPaymentPlans({
           plans: {
@@ -92,6 +99,10 @@ export default function Pricing() {
           </div>
         )}
 
+        {!isApiConfigured() && (
+          <div className="pricing-warning glass-card">{API_NOT_CONFIGURED_MSG}</div>
+        )}
+
         {error && <div className="pricing-error glass-card">{error}</div>}
 
         {plansLoading ? (
@@ -140,7 +151,12 @@ export default function Pricing() {
             <button
               className="btn btn-primary"
               onClick={() => handleUpgrade('pro_monthly')}
-              disabled={loading !== null || (!!user && plan?.plan === 'pro') || !cashfreeReady}
+              disabled={
+                loading !== null ||
+                (!!user && plan?.plan === 'pro') ||
+                !cashfreeReady ||
+                !isApiConfigured()
+              }
             >
               {loading === 'pro_monthly'
                 ? 'Opening checkout...'
@@ -170,7 +186,12 @@ export default function Pricing() {
             <button
               className="btn btn-primary"
               onClick={() => handleUpgrade('pro_yearly')}
-              disabled={loading !== null || (!!user && plan?.plan === 'pro') || !cashfreeReady}
+              disabled={
+                loading !== null ||
+                (!!user && plan?.plan === 'pro') ||
+                !cashfreeReady ||
+                !isApiConfigured()
+              }
             >
               {loading === 'pro_yearly'
                 ? 'Opening checkout...'

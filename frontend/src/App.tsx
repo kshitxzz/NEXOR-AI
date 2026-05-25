@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { UserProvider } from './context/UserContext';
+import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import Home from './pages/Home';
@@ -15,6 +16,7 @@ export default function App() {
   return (
     <AuthProvider>
       <UserProvider>
+        <ErrorBoundary>
         <BrowserRouter>
           <Routes>
             <Route element={<Layout />}>
@@ -42,6 +44,7 @@ export default function App() {
             </Route>
           </Routes>
         </BrowserRouter>
+        </ErrorBoundary>
       </UserProvider>
     </AuthProvider>
   );
