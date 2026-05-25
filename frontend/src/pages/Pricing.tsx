@@ -19,17 +19,24 @@ export default function Pricing() {
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [paymentPlans, setPaymentPlans] = useState<PaymentPlans | null>(null);
+  const [plansError, setPlansError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPaymentPlans()
       .then((data) => {
         if (data?.plans?.pro_monthly) {
           setPaymentPlans(data);
+          setPlansError(null);
         } else {
           throw new Error('Invalid plans response');
         }
       })
       .catch(() => {
+        setPlansError(
+          import.meta.env.PROD && !isApiConfigured()
+            ? API_NOT_CONFIGURED_MSG
+            : 'Cannot reach the live API. On Vercel set VITE_API_URL to your Render URL. On Render set FRONTEND_URL to your Vercel URL, then redeploy both.'
+        );
         setPaymentPlans({
           plans: {
             pro_monthly: { amount: 499, currency: 'INR', label: 'Pro Monthly' },
@@ -92,14 +99,20 @@ export default function Pricing() {
           </p>
         )}
 
-        {!cashfreeReady && (
+        {plansError && (
+          <div className="pricing-warning glass-card">{plansError}</div>
+        )}
+
+        {!plansError && paymentPlans && !cashfreeReady && (
           <div className="pricing-warning glass-card">
-            Payments are not configured yet. Add your Cashfree PG sandbox keys to{' '}
-            <code>backend/.env</code> and restart the API server.
+            Cashfree is not configured on the <strong>deployed API</strong>. Add{' '}
+            <code>CASHFREE_APP_ID</code> and <code>CASHFREE_SECRET_KEY</code> in{' '}
+            <strong>Render → Environment</strong> (not only local <code>backend/.env</code>
+            ), then redeploy the backend.
           </div>
         )}
 
-        {!isApiConfigured() && (
+        {!isApiConfigured() && !plansError && (
           <div className="pricing-warning glass-card">{API_NOT_CONFIGURED_MSG}</div>
         )}
 

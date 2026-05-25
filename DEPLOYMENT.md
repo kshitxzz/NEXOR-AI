@@ -43,15 +43,21 @@ Redeploy after changing env vars.
 
 Your API: `https://nexorai-lpnx.onrender.com/api/health` should return `{"status":"ok",...}`
 
+**Local `backend/.env` does NOT affect production.** Copy the same values into Render.
+
 | Variable | Value |
 |----------|--------|
 | `NODE_ENV` | `production` |
-| `FRONTEND_URL` | `https://nexorai-app.vercel.app` |
+| `FRONTEND_URL` | `https://nexorai-app.vercel.app` ← required for CORS |
 | `BACKEND_URL` | `https://nexorai-lpnx.onrender.com` |
 | `GEMINI_API_KEY` | your key |
 | `SUPABASE_URL` | your Supabase URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | service role key |
-| Cashfree vars | sandbox or production keys |
+| `CASHFREE_APP_ID` | your sandbox App ID |
+| `CASHFREE_SECRET_KEY` | your sandbox Secret |
+| `CASHFREE_ENV` | `sandbox` |
+
+Check payments: `https://nexorai-lpnx.onrender.com/api/payment/plans` should show `"cashfreeConfigured":true`.
 
 **Start command:** `npm start`  
 **Root directory:** `backend`
