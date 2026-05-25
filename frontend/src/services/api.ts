@@ -70,13 +70,25 @@ export async function fetchUserPlan(): Promise<UserPlan> {
   return apiFetch<UserPlan>('/api/user/plan');
 }
 
+export interface PlanPrice {
+  amount: number;
+  currency: string;
+  label: string;
+}
+
 export interface PaymentPlans {
   plans: {
-    pro_monthly: { amount: number; currency: string; label: string };
-    pro_yearly: { amount: number; currency: string; label: string };
+    pro_monthly: PlanPrice;
+    pro_yearly?: PlanPrice;
+    /** @deprecated Old API shape — still supported for backward compatibility */
+    pro_onetime?: PlanPrice;
   };
   cashfreeConfigured: boolean;
   mode: 'sandbox' | 'production';
+}
+
+export function getYearlyPlanAmount(plans: PaymentPlans['plans'] | undefined): number {
+  return plans?.pro_yearly?.amount ?? plans?.pro_onetime?.amount ?? 4999;
 }
 
 export async function fetchPaymentPlans(): Promise<PaymentPlans> {

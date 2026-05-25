@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   createPaymentOrder,
   fetchPaymentPlans,
+  getYearlyPlanAmount,
   type PaymentPlans,
 } from '../services/api';
 import { useUser } from '../context/UserContext';
@@ -59,10 +60,11 @@ export default function Pricing() {
     }
   };
 
-  const monthlyPrice = paymentPlans?.plans.pro_monthly.amount ?? 499;
-  const yearlyPrice = paymentPlans?.plans.pro_yearly.amount ?? 4999;
+  const monthlyPrice = paymentPlans?.plans?.pro_monthly?.amount ?? 499;
+  const yearlyPrice = getYearlyPlanAmount(paymentPlans?.plans);
   const yearlyComparePrice = 5999;
   const cashfreeReady = paymentPlans?.cashfreeConfigured ?? true;
+  const plansLoading = paymentPlans === null;
 
   return (
     <main className="pricing-page section">
@@ -92,6 +94,12 @@ export default function Pricing() {
 
         {error && <div className="pricing-error glass-card">{error}</div>}
 
+        {plansLoading ? (
+          <div className="pricing-loading glass-card">
+            <div className="loader" />
+            <p>Loading plans...</p>
+          </div>
+        ) : (
         <div className="pricing-grid">
           <div className="pricing-card glass-card">
             <h3>Basic</h3>
@@ -172,6 +180,7 @@ export default function Pricing() {
             </button>
           </div>
         </div>
+        )}
 
         <p className="pricing-note">
           Secure payments powered by Cashfree
