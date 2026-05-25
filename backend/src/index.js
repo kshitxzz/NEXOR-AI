@@ -25,11 +25,22 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const HOST = process.env.HOST || '0.0.0.0';
 
+function isOriginAllowed(origin) {
+  if (!origin) return true;
+  const normalized = origin.replace(/\/$/, '');
+  const allowed = getAllowedOrigins();
+  if (allowed.includes(normalized)) return true;
+  // Vercel production/preview deployments (*.vercel.app)
+  if (process.env.NODE_ENV === 'production' && /\.vercel\.app$/i.test(normalized)) {
+    return true;
+  }
+  return false;
+}
+
 app.use(
   cors({
     origin(origin, callback) {
-      const allowed = getAllowedOrigins();
-      if (!origin || allowed.includes(origin.replace(/\/$/, ''))) {
+      if (isOriginAllowed(origin)) {
         callback(null, true);
       } else {
         callback(new Error(`CORS blocked: ${origin}`));
