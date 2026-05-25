@@ -1,11 +1,16 @@
+/** Production Render API — used if VITE_API_URL was not set at Vercel build time */
+const PRODUCTION_API_DEFAULT = 'https://nexorai-lpnx.onrender.com';
+
 export function getApiBaseUrl(): string {
-  return (import.meta.env.VITE_API_URL || '').trim().replace(/\/$/, '');
+  const fromEnv = (import.meta.env.VITE_API_URL || '').trim().replace(/\/$/, '');
+  if (fromEnv) return fromEnv;
+  if (import.meta.env.PROD) return PRODUCTION_API_DEFAULT;
+  return '';
 }
 
 /** In dev, Vite proxies `/api`. In production, VITE_API_URL must point to your backend. */
 export function isApiConfigured(): boolean {
-  if (getApiBaseUrl()) return true;
-  return !import.meta.env.PROD;
+  return Boolean(getApiBaseUrl()) || !import.meta.env.PROD;
 }
 
 export function resolveApiUrl(path: string): string {
@@ -14,4 +19,4 @@ export function resolveApiUrl(path: string): string {
 }
 
 export const API_NOT_CONFIGURED_MSG =
-  'Backend API is not connected. Add VITE_API_URL in Vercel (your Render/Railway API URL) and redeploy.';
+  'Backend API is not connected. In Vercel add VITE_API_URL=https://nexorai-lpnx.onrender.com then click Deployments → Redeploy (required after env changes).';

@@ -9,7 +9,12 @@ import {
 } from '../services/api';
 import { useUser } from '../context/UserContext';
 import { openCashfreeCheckout } from '../utils/cashfreeCheckout';
-import { API_NOT_CONFIGURED_MSG, isApiConfigured } from '../utils/apiConfig';
+import {
+  API_NOT_CONFIGURED_MSG,
+  getApiBaseUrl,
+  isApiConfigured,
+  resolveApiUrl,
+} from '../utils/apiConfig';
 import './Pricing.css';
 
 export default function Pricing() {
@@ -31,11 +36,11 @@ export default function Pricing() {
           throw new Error('Invalid plans response');
         }
       })
-      .catch(() => {
+      .catch((err) => {
+        const apiUrl = resolveApiUrl('/api/payment/plans');
+        const detail = err instanceof Error ? err.message : 'Network error';
         setPlansError(
-          import.meta.env.PROD && !isApiConfigured()
-            ? API_NOT_CONFIGURED_MSG
-            : 'Cannot reach the live API. On Vercel set VITE_API_URL to your Render URL. On Render set FRONTEND_URL to your Vercel URL, then redeploy both.'
+          `Cannot reach ${apiUrl}. ${detail} — Redeploy Vercel (Deployments → Redeploy) after saving env vars. On Render set FRONTEND_URL=https://nexorai-app.vercel.app and redeploy.`
         );
         setPaymentPlans({
           plans: {
@@ -112,7 +117,7 @@ export default function Pricing() {
           </div>
         )}
 
-        {!isApiConfigured() && !plansError && (
+        {import.meta.env.PROD && !getApiBaseUrl() && !plansError && (
           <div className="pricing-warning glass-card">{API_NOT_CONFIGURED_MSG}</div>
         )}
 
