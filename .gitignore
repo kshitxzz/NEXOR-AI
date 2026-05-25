@@ -10,6 +10,7 @@ frontend/.env
 # Build output
 frontend/dist/
 backend/data/
+*.tsbuildinfo
 
 # OS / editor
 .DS_Store
