@@ -1,0 +1,71 @@
+.hero-dashboard {
+  padding: 0;
+  overflow: hidden;
+  min-height: 320px;
+}
+
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.dot.red { background: #ef4444; }
+.dot.yellow { background: #eab308; }
+.dot.green { background: #22c55e; }
+
+.dashboard-title {
+  margin-left: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.dashboard-body {
+  padding: 1.25rem;
+  min-height: 260px;
+}
+
+.dashboard-input p,
+.dashboard-output p {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-top: 0.5rem;
+  white-space: pre-wrap;
+}
+
+.dashboard-output p {
+  color: var(--text-primary);
+}
+
+.label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--gradient-start);
+  font-weight: 600;
+}
+
+.cursor {
+  animation: pulse-glow 1s infinite;
+  color: var(--gradient-start);
+}
+
+.dashboard-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  min-height: 200px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}

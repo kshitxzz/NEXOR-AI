@@ -1,0 +1,51 @@
+.payment-result {
+  min-height: 60vh;
+  display: flex;
+  align-items: center;
+}
+
+.result-card {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 3rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.result-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.result-icon.success {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+}
+
+.result-icon.pending {
+  background: rgba(234, 179, 8, 0.2);
+  color: #eab308;
+}
+
+.result-icon.error {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.result-card h2 {
+  font-size: 1.5rem;
+}
+
+.result-card p {
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}

@@ -1,0 +1,131 @@
+.pricing-page {
+  padding-top: 2rem;
+}
+
+.current-plan {
+  text-align: center;
+  color: var(--text-secondary);
+  margin-bottom: 2rem;
+}
+
+.pricing-error {
+  max-width: 560px;
+  margin: 0 auto 2rem;
+  padding: 1rem;
+  color: #f87171;
+  text-align: center;
+}
+
+.pricing-warning {
+  max-width: 560px;
+  margin: 0 auto 2rem;
+  padding: 1rem;
+  color: #fbbf24;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.pricing-warning code {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+}
+
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.pricing-card {
+  padding: 2rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.pricing-card.featured {
+  border-color: rgba(124, 58, 237, 0.5);
+  box-shadow: 0 0 40px var(--glow-purple);
+}
+
+.popular-badge {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.pricing-card h3 {
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.price {
+  margin-bottom: 1.5rem;
+}
+
+.price .amount {
+  font-size: 2.5rem;
+  font-weight: 800;
+}
+
+.price .period {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.price-annual {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.price-annual .price-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+
+.price-compare {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+  text-decoration-color: rgba(248, 113, 113, 0.85);
+}
+
+.pricing-card ul {
+  list-style: none;
+  flex: 1;
+  margin-bottom: 1.5rem;
+}
+
+.pricing-card li {
+  padding: 0.5rem 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.pricing-card li::before {
+  content: '✓ ';
+  color: var(--gradient-start);
+  font-weight: 700;
+}
+
+.pricing-note {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
