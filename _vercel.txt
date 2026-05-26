@@ -1,1 +1,0 @@
-vc-domain-verify=nexorai-app.vercel.com,38847653585ef0b32f58

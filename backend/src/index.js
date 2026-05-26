@@ -67,12 +67,13 @@ app.use('/api', limiter);
 app.use('/api/generate', generateLimiter);
 
 app.get('/api/health', async (_, res) => {
-  const { isGeminiConfigured } = await import('./services/gemini.js');
+  const { isGeminiConfigured, getApiKeys } = await import('./services/gemini.js');
   const { isSupabaseConfigured } = await import('./services/supabase.js');
   res.json({
     status: 'ok',
     service: 'NexorAI API',
     geminiConfigured: isGeminiConfigured(),
+    geminiKeyCount: getApiKeys().length,
     supabaseConfigured: isSupabaseConfigured(),
   });
 });

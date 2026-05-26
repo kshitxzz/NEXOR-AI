@@ -50,7 +50,8 @@ Your API: `https://nexorai-lpnx.onrender.com/api/health` should return `{"status
 | `NODE_ENV` | `production` |
 | `FRONTEND_URL` | `https://nexorai-app.vercel.app` ← required for CORS |
 | `BACKEND_URL` | `https://nexorai-lpnx.onrender.com` |
-| `GEMINI_API_KEY` | your key |
+| `GEMINI_API_KEY` | primary Gemini key ([create here](https://aistudio.google.com/apikey)) |
+| `GEMINI_API_KEY_2` | optional backup key — auto-used if primary fails or is rate-limited |
 | `SUPABASE_URL` | your Supabase URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | service role key |
 | `CASHFREE_APP_ID` | your sandbox App ID |
