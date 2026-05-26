@@ -1,5 +1,6 @@
 import { isSupabaseConfigured, verifyAccessToken } from '../services/supabase.js';
-import { getOrCreateProfile } from '../db/supabaseDb.js';
+import { getOrCreateProfile, downgradeExpiredPlan } from '../db/supabaseDb.js';
+import { isProActive } from '../utils/plan.js';
 
 export async function requireAuth(req, res, next) {
   if (!isSupabaseConfigured()) {
@@ -28,7 +29,13 @@ export async function requireAuth(req, res, next) {
   }
 
   try {
-    const profile = await getOrCreateProfile(user.id, user.email);
+    let profile = await getOrCreateProfile(user.id, user.email);
+
+    if (profile.plan === 'pro' && profile.plan_expires_at && !isProActive(profile)) {
+      await downgradeExpiredPlan(user.id);
+      profile = { ...profile, plan: 'free' };
+    }
+
     req.authUser = user;
     req.userId = user.id;
     req.user = profile;

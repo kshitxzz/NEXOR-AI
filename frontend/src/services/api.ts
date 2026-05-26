@@ -3,6 +3,8 @@ import { API_NOT_CONFIGURED_MSG, isApiConfigured, resolveApiUrl } from '../utils
 export interface UserPlan {
   plan: 'free' | 'pro';
   planExpiresAt: string | null;
+  /** True when a paid Pro period ended — user must renew (not regular free tier). */
+  subscriptionLapsed?: boolean;
   email?: string | null;
   dailyLimit: number | null;
   dailyUsed: number;
@@ -74,10 +76,12 @@ async function apiFetch<T>(path: string, options: RequestInit = {}, authRequired
     const err = new Error(data.message || data.error || 'Request failed') as Error & {
       status?: number;
       upgrade?: boolean;
+      planExpired?: boolean;
       data?: unknown;
     };
     err.status = res.status;
     err.upgrade = data.upgrade;
+    err.planExpired = data.planExpired;
     err.data = data;
     throw err;
   }

@@ -36,17 +36,22 @@ export default function Navbar() {
           {user ? (
             <>
               {plan && (
-                <span className={`plan-badge plan-${plan.plan}`} title="Your personal daily limit">
-                  {plan.plan === 'pro'
-                    ? 'Pro'
-                    : `Free · ${plan.remaining ?? 0}/${plan.dailyLimit ?? 5} today`}
+                <span
+                  className={`plan-badge plan-${plan.subscriptionLapsed ? 'expired' : plan.plan}`}
+                  title="Your plan status"
+                >
+                  {plan.subscriptionLapsed
+                    ? 'Pro expired'
+                    : plan.plan === 'pro'
+                      ? 'Pro'
+                      : `Free · ${plan.remaining ?? 0}/${plan.dailyLimit ?? 5} today`}
                 </span>
               )}
               <span className="nav-email" title={user.email}>
                 {user.email?.split('@')[0]}
               </span>
               <Link to="/pricing" className="btn btn-primary btn-sm">
-                Upgrade
+                {plan?.subscriptionLapsed ? 'Renew' : 'Upgrade'}
               </Link>
               <button type="button" className="btn btn-outline btn-sm" onClick={handleSignOut}>
                 Logout

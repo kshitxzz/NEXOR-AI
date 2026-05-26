@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams, Navigate } from 'react-router-dom';
+import { Link, useParams, Navigate, useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { getToolById } from '../data/tools';
 import { generateContent } from '../services/api';
@@ -10,6 +10,7 @@ export default function ToolPage() {
   const { toolId } = useParams<{ toolId: string }>();
   const tool = toolId ? getToolById(toolId) : undefined;
   const { plan, refreshPlan } = useUser();
+  const navigate = useNavigate();
 
   const [input, setInput] = useState('');
   const [output, setOutput] = useState('');
@@ -35,7 +36,14 @@ export default function ToolPage() {
       setOutput(result.output);
       await refreshPlan();
     } catch (err) {
-      const e = err as Error & { upgrade?: boolean };
+      const e = err as Error & { upgrade?: boolean; planExpired?: boolean };
+      if (e.planExpired) {
+        navigate('/pricing', {
+          replace: true,
+          state: { subscriptionExpired: true },
+        });
+        return;
+      }
       setError(e.message);
       if (e.upgrade) {
         setError(

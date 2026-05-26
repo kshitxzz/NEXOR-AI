@@ -4,6 +4,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { checkUsageLimit } from '../middleware/usageLimit.js';
 import { recordUsage } from '../db/supabaseDb.js';
 import { VALID_TOOL_IDS } from '../prompts/templates.js';
+import { isProActive } from '../utils/plan.js';
 
 const router = Router();
 const FREE_LIMIT = parseInt(process.env.FREE_DAILY_LIMIT || '5', 10);
@@ -23,9 +24,7 @@ router.post('/', requireAuth, checkUsageLimit, async (req, res) => {
     await recordUsage(req.userId, toolId);
 
     const dailyUsed = (req.dailyUsage ?? 0) + 1;
-    const isPro =
-      req.user.plan === 'pro' &&
-      (!req.user.plan_expires_at || new Date(req.user.plan_expires_at) > new Date());
+    const isPro = isProActive(req.user);
 
     res.json({
       success: true,

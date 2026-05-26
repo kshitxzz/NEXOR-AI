@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   createPaymentOrder,
@@ -20,7 +20,12 @@ import './Pricing.css';
 export default function Pricing() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { plan } = useUser();
+  const subscriptionExpired =
+    (location.state as { subscriptionExpired?: boolean } | null)?.subscriptionExpired ===
+      true || plan?.subscriptionLapsed === true;
+  const hasActivePro = plan?.plan === 'pro' && !plan?.subscriptionLapsed;
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [paymentPlans, setPaymentPlans] = useState<PaymentPlans | null>(null);
@@ -95,11 +100,36 @@ export default function Pricing() {
           Start free with 5 generations per day, or upgrade for unlimited AI power
         </p>
 
+        {subscriptionExpired && (
+          <div className="pricing-expired glass-card" role="alert">
+            <strong>Your Pro plan has ended.</strong> Renew below to restore unlimited access to
+            all tools.
+          </div>
+        )}
+
         {plan && (
           <p className="current-plan">
-            Current plan: <strong>{plan.plan === 'pro' ? 'Pro' : 'Free'}</strong>
-            {plan.plan === 'free' && plan.remaining !== null && (
+            Current plan:{' '}
+            <strong>
+              {hasActivePro
+                ? 'Pro'
+                : subscriptionExpired
+                  ? 'Pro (expired)'
+                  : 'Free'}
+            </strong>
+            {plan.plan === 'free' && !subscriptionExpired && plan.remaining !== null && (
               <> · {plan.remaining} generations left today</>
+            )}
+            {hasActivePro && plan.planExpiresAt && (
+              <>
+                {' '}
+                · Renews/ends{' '}
+                {new Date(plan.planExpiresAt).toLocaleDateString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              </>
             )}
           </p>
         )}
@@ -171,7 +201,7 @@ export default function Pricing() {
               onClick={() => handleUpgrade('pro_monthly')}
               disabled={
                 loading !== null ||
-                (!!user && plan?.plan === 'pro') ||
+                (!!user && hasActivePro) ||
                 !cashfreeReady ||
                 !isApiConfigured()
               }
@@ -179,7 +209,9 @@ export default function Pricing() {
               {loading === 'pro_monthly'
                 ? 'Opening checkout...'
                 : user
-                  ? 'Upgrade Now'
+                  ? subscriptionExpired
+                    ? 'Renew Pro Monthly'
+                    : 'Upgrade Now'
                   : 'Log in to Upgrade'}
             </button>
           </div>
@@ -206,7 +238,7 @@ export default function Pricing() {
               onClick={() => handleUpgrade('pro_yearly')}
               disabled={
                 loading !== null ||
-                (!!user && plan?.plan === 'pro') ||
+                (!!user && hasActivePro) ||
                 !cashfreeReady ||
                 !isApiConfigured()
               }
@@ -214,7 +246,9 @@ export default function Pricing() {
               {loading === 'pro_yearly'
                 ? 'Opening checkout...'
                 : user
-                  ? 'Subscribe Yearly'
+                  ? subscriptionExpired
+                    ? 'Renew Pro Annual'
+                    : 'Subscribe Yearly'
                   : 'Log in to Subscribe'}
             </button>
           </div>

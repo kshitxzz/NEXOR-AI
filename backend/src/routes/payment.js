@@ -15,20 +15,9 @@ import {
   setUserPlan,
 } from '../db/supabaseDb.js';
 import { requireAuth } from '../middleware/auth.js';
+import { computePlanExpiresAt } from '../utils/plan.js';
 
 const router = Router();
-
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
-function getPlanExpiresAt(planType) {
-  if (planType === 'pro_monthly') {
-    return new Date(Date.now() + 30 * MS_PER_DAY).toISOString();
-  }
-  if (planType === 'pro_yearly' || planType === 'pro_onetime') {
-    return new Date(Date.now() + 365 * MS_PER_DAY).toISOString();
-  }
-  return null;
-}
 
 router.get('/plans', (_req, res) => {
   res.json({
@@ -108,7 +97,8 @@ router.post('/verify-payment', requireAuth, async (req, res) => {
 
     if (paid) {
       await updateOrderStatus(orderId, 'paid');
-      const expiresAt = getPlanExpiresAt(localOrder.plan_type);
+      const profile = await getOrCreateProfile(localOrder.user_id);
+      const expiresAt = computePlanExpiresAt(localOrder.plan_type, profile?.plan_expires_at);
       await setUserPlan(localOrder.user_id, 'pro', expiresAt);
 
       return res.json({
@@ -143,7 +133,8 @@ router.post('/webhook', async (req, res) => {
       const localOrder = await getOrder(orderId);
       if (localOrder && localOrder.status !== 'paid') {
         await updateOrderStatus(orderId, 'paid');
-        const expiresAt = getPlanExpiresAt(localOrder.plan_type);
+        const profile = await getOrCreateProfile(localOrder.user_id);
+        const expiresAt = computePlanExpiresAt(localOrder.plan_type, profile?.plan_expires_at);
         await setUserPlan(localOrder.user_id, 'pro', expiresAt);
       }
     }

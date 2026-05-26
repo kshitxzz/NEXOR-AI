@@ -70,6 +70,11 @@
   color: #c4b5fd;
 }
 
+.plan-expired {
+  background: rgba(248, 113, 113, 0.15);
+  color: #fca5a5;
+}
+
 .nav-email {
   font-size: 0.8rem;
   color: var(--text-secondary);

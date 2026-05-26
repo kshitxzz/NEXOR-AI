@@ -1,4 +1,5 @@
 import { getDailyUsageCount } from '../db/supabaseDb.js';
+import { isProActive, isSubscriptionLapsed } from '../utils/plan.js';
 
 const FREE_LIMIT = parseInt(process.env.FREE_DAILY_LIMIT || '5', 10);
 
@@ -10,11 +11,17 @@ export async function checkUsageLimit(req, res, next) {
     return res.status(401).json({ error: 'Authentication required' });
   }
 
-  if (user.plan === 'pro') {
-    const expires = user.plan_expires_at ? new Date(user.plan_expires_at) : null;
-    if (!expires || expires > new Date()) {
-      return next();
-    }
+  if (isProActive(user)) {
+    return next();
+  }
+
+  if (isSubscriptionLapsed(user)) {
+    return res.status(403).json({
+      error: 'Subscription expired',
+      message: 'Your Pro plan has ended. Renew to continue using all tools.',
+      planExpired: true,
+      upgrade: true,
+    });
   }
 
   try {

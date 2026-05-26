@@ -67,6 +67,19 @@ export async function setUserPlan(userId, plan, expiresAt = null) {
   if (error) throw new Error(error.message);
 }
 
+/** Downgrade to free but keep plan_expires_at so we know the subscription lapsed. */
+export async function downgradeExpiredPlan(userId) {
+  const { error } = await db()
+    .from('profiles')
+    .update({
+      plan: 'free',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', userId);
+
+  if (error) throw new Error(error.message);
+}
+
 export async function createOrder(orderId, userId, planType, amount, sessionId) {
   const { error } = await db().from('orders').insert({
     order_id: orderId,
