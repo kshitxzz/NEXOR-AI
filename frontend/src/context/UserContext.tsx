@@ -12,6 +12,7 @@ import { useAuth } from './AuthContext';
 
 const EXPIRED_ALLOWED_PATHS = [
   '/pricing',
+  '/settings',
   '/payment/success',
   '/login',
   '/signup',

@@ -102,3 +102,43 @@ export async function updateOrderStatus(orderId, status) {
   const { error } = await db().from('orders').update({ status }).eq('order_id', orderId);
   if (error) throw new Error(error.message);
 }
+
+export async function updateProfile(userId, fields) {
+  const allowed = ['full_name', 'display_name', 'avatar_url', 'email'];
+  const updates = { updated_at: new Date().toISOString() };
+
+  for (const key of allowed) {
+    if (fields[key] !== undefined) {
+      updates[key] = fields[key];
+    }
+  }
+
+  const { data, error } = await db()
+    .from('profiles')
+    .update(updates)
+    .eq('id', userId)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function getLastPaidOrder(userId) {
+  const { data, error } = await db()
+    .from('orders')
+    .select('plan_type, amount, created_at, order_id')
+    .eq('user_id', userId)
+    .eq('status', 'paid')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function deleteUserAccount(userId) {
+  const { error } = await db().auth.admin.deleteUser(userId);
+  if (error) throw new Error(error.message);
+}

@@ -152,3 +152,64 @@ export async function verifyPayment(orderId: string) {
     body: JSON.stringify({ orderId }),
   });
 }
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  fullName: string;
+  displayName: string;
+  avatarUrl: string;
+  createdAt: string;
+}
+
+export interface BillingInfo extends UserPlan {
+  status: 'free' | 'active' | 'expired';
+  planType: string | null;
+  planLabel: string;
+  planStartedAt: string | null;
+  memberSince: string;
+}
+
+export interface UserSession {
+  id: string;
+  current: boolean;
+  device: string;
+  ip: string;
+  lastActive: string;
+  signedInAt: string;
+}
+
+export async function fetchUserProfile(): Promise<UserProfile> {
+  return apiFetch<UserProfile>('/api/user/profile');
+}
+
+export async function updateUserProfile(data: {
+  fullName?: string;
+  displayName?: string;
+  avatarUrl?: string;
+}) {
+  return apiFetch<{
+    success: boolean;
+    fullName: string;
+    displayName: string;
+    avatarUrl: string;
+  }>('/api/user/profile', {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function fetchBillingInfo(): Promise<BillingInfo> {
+  return apiFetch<BillingInfo>('/api/user/billing');
+}
+
+export async function fetchUserSessions(): Promise<{ sessions: UserSession[] }> {
+  return apiFetch<{ sessions: UserSession[] }>('/api/user/sessions');
+}
+
+export async function deleteUserAccount() {
+  return apiFetch<{ success: boolean; message: string }>('/api/user/account', {
+    method: 'DELETE',
+    body: JSON.stringify({ confirm: 'DELETE' }),
+  });
+}

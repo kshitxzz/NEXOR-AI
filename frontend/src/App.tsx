@@ -12,6 +12,7 @@ import PaymentSuccess from './pages/PaymentSuccess';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import AuthCallback from './pages/AuthCallback';
+import Settings from './pages/Settings';
 
 export default function App() {
   return (
@@ -36,6 +37,14 @@ export default function App() {
                   }
                 />
                 <Route path="/pricing" element={<Pricing />} />
+                <Route
+                  path="/settings"
+                  element={
+                    <ProtectedRoute>
+                      <Settings />
+                    </ProtectedRoute>
+                  }
+                />
                 <Route
                   path="/payment/success"
                   element={

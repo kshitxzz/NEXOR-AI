@@ -1,22 +1,20 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useUser } from '../context/UserContext';
+import ProfileMenu from './ProfileMenu';
 import './Navbar.css';
 
 export default function Navbar() {
   const { pathname } = useLocation();
-  const navigate = useNavigate();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const { plan } = useUser();
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/');
-  };
+  const hasActivePro = plan?.plan === 'pro' && !plan?.subscriptionLapsed;
+  const showUpgrade = user && !hasActivePro;
 
   return (
     <header className="navbar glass-card">
-      <div className="container navbar-inner">
+      <div className="navbar-inner">
         <Link to="/" className="logo">
           <span className="logo-icon">◆</span>
           <span>
@@ -24,12 +22,14 @@ export default function Navbar() {
           </span>
         </Link>
 
-        <nav className="nav-links">
+        <nav className="nav-links" aria-label="Main navigation">
           <Link to="/#tools" className={pathname === '/' ? 'active' : ''}>
             Tools
           </Link>
           <Link to="/#categories">Categories</Link>
-          <Link to="/pricing">Pricing</Link>
+          <Link to="/pricing" className={pathname === '/pricing' ? 'active' : ''}>
+            Pricing
+          </Link>
         </nav>
 
         <div className="nav-actions">
@@ -41,21 +41,18 @@ export default function Navbar() {
                   title="Your plan status"
                 >
                   {plan.subscriptionLapsed
-                    ? 'Pro expired'
+                    ? 'Expired'
                     : plan.plan === 'pro'
                       ? 'Pro'
-                      : `Free · ${plan.remaining ?? 0}/${plan.dailyLimit ?? 5} today`}
+                      : `${plan.remaining ?? 0}/${plan.dailyLimit ?? 5} today`}
                 </span>
               )}
-              <span className="nav-email" title={user.email}>
-                {user.email?.split('@')[0]}
-              </span>
-              <Link to="/pricing" className="btn btn-primary btn-sm">
-                {plan?.subscriptionLapsed ? 'Renew' : 'Upgrade'}
-              </Link>
-              <button type="button" className="btn btn-outline btn-sm" onClick={handleSignOut}>
-                Logout
-              </button>
+              {showUpgrade && (
+                <Link to="/pricing" className="btn btn-primary btn-sm nav-upgrade-btn">
+                  {plan?.subscriptionLapsed ? 'Renew' : 'Upgrade'}
+                </Link>
+              )}
+              <ProfileMenu />
             </>
           ) : (
             <>
