@@ -138,7 +138,44 @@ export async function getLastPaidOrder(userId) {
   return data;
 }
 
+/**
+ * Fully deletes a user account:
+ * 1. Removes usage_logs
+ * 2. Removes orders
+ * 3. Removes the profile row
+ * 4. Deletes the auth user (removes from Supabase Auth entirely)
+ */
 export async function deleteUserAccount(userId) {
-  const { error } = await db().auth.admin.deleteUser(userId);
-  if (error) throw new Error(error.message);
+  const supabase = db();
+
+  // Step 1: Delete usage logs
+  const { error: usageError } = await supabase
+    .from('usage_logs')
+    .delete()
+    .eq('user_id', userId);
+  if (usageError) {
+    console.warn('Could not delete usage_logs:', usageError.message);
+  }
+
+  // Step 2: Delete payment orders
+  const { error: ordersError } = await supabase
+    .from('orders')
+    .delete()
+    .eq('user_id', userId);
+  if (ordersError) {
+    console.warn('Could not delete orders:', ordersError.message);
+  }
+
+  // Step 3: Delete the profile row
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .delete()
+    .eq('id', userId);
+  if (profileError) {
+    console.warn('Could not delete profile:', profileError.message);
+  }
+
+  // Step 4: Delete the Supabase Auth user (this is the definitive removal)
+  const { error: authError } = await supabase.auth.admin.deleteUser(userId);
+  if (authError) throw new Error(authError.message);
 }
