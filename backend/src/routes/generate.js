@@ -9,16 +9,13 @@ import { isProActive } from '../utils/plan.js';
 const router = Router();
 const FREE_LIMIT = parseInt(process.env.FREE_DAILY_LIMIT || '5', 10);
 
-// Human-friendly messages for error codes from gemini.js
 const AI_ERROR_MESSAGES = {
   AI_NOT_CONFIGURED:
-    'The AI service is not set up on the server yet. The admin needs to add a valid GEMINI_API_KEY.',
+    'The AI service has not been configured yet. Please contact support.',
   AI_KEY_INVALID:
-    'The AI service credentials have expired. Please contact support.',
-  AI_QUOTA_EXCEEDED:
-    'The AI is temporarily overloaded. Please wait a minute and try again.',
-  AI_SAFETY_BLOCK:
-    'This content could not be generated. Try rephrasing your input.',
+    'The AI service credentials are invalid. Please contact support.',
+  AI_RATE_LIMITED:
+    'The AI is receiving too many requests right now. Please wait a minute and try again.',
   AI_UNAVAILABLE:
     'Sorry for the inconvenience, but the AI is not working at this time. Please try again shortly.',
 };
@@ -57,7 +54,7 @@ router.post('/', requireAuth, checkUsageLimit, async (req, res) => {
       AI_ERROR_MESSAGES[code] ||
       'Sorry for the inconvenience, but the AI is not working at this time. Please try again shortly.';
 
-    console.error('Generate error:', err.message);
+    console.error('[generate] Error:', err.message);
 
     res.status(500).json({
       error: 'Generation failed',

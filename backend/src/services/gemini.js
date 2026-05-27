@@ -7,6 +7,10 @@ const PLACEHOLDER_KEYS = new Set([
   'your_backup_gemini_api_key',
 ]);
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function normalizeKey(raw) {
   if (typeof raw !== 'string') return '';
   return raw.trim();
@@ -27,68 +31,69 @@ export function isGeminiConfigured() {
   return getApiKeys().length > 0;
 }
 
+/**
+ * Model list ordered by free-tier quota (highest first).
+ * gemini-2.0-flash-lite: 30 RPM on free tier
+ * gemini-2.0-flash:      15 RPM on free tier
+ * gemini-1.5-flash:      15 RPM on free tier
+ * gemini-1.5-flash-8b:   15 RPM on free tier (smallest/fastest fallback)
+ */
 function getModelCandidates() {
-  // gemini-2.0-flash is most stable and widely available on free tier — always try it first
   return [
+    'gemini-2.0-flash-lite',
     'gemini-2.0-flash',
     'gemini-1.5-flash',
-    'gemini-2.0-flash-lite',
+    'gemini-1.5-flash-8b',
   ];
 }
 
-/**
- * True only when the API key itself is invalid/revoked.
- * A 403 on a specific model (e.g. model not in free tier) is NOT a key failure —
- * we should still try the next model with the same key.
- */
+/** True only when the API key itself is invalid/revoked (not a model-level issue). */
 function isKeyFailure(err) {
   const status = err?.status;
   const msg = (err?.message || '').toLowerCase();
 
-  // 401 is always a key failure
   if (status === 401) return true;
 
-  // 403 is only a key failure if the message explicitly says so
-  if (status === 403) {
-    return (
-      msg.includes('api_key_invalid') ||
-      msg.includes('api key not valid') ||
-      msg.includes('api key was reported') ||
-      msg.includes('api key expired') ||
-      msg.includes('invalid api key')
-    );
-  }
+  // 403 is a key failure ONLY if the message explicitly says the key is bad
+  const keyBadPhrases = [
+    'api_key_invalid',
+    'api key not valid',
+    'api key was reported',
+    'api key expired',
+    'invalid api key',
+    'provide an api key',
+  ];
+  if (keyBadPhrases.some((p) => msg.includes(p))) return true;
 
-  return (
-    msg.includes('api_key_invalid') ||
-    msg.includes('api key not valid') ||
-    msg.includes('api key was reported') ||
-    msg.includes('api key expired') ||
-    msg.includes('invalid api key')
-  );
+  return false;
 }
 
+/** True when we should try the next model (not a key problem, just this model). */
 function isModelRetryable(err) {
   const status = err?.status;
   const msg = (err?.message || '').toLowerCase();
   return (
-    status === 403 || // model permission — try next model
-    status === 404 || // model not found — try next model
-    status === 429 || // quota/rate limit — try next model
-    status === 503 || // overloaded
+    status === 403 ||
+    status === 404 ||
+    status === 503 ||
     msg.includes('not found') ||
-    msg.includes('quota') ||
-    msg.includes('rate limit') ||
-    msg.includes('overloaded') ||
-    msg.includes('unavailable') ||
+    msg.includes('not supported') ||
     msg.includes('permission') ||
-    msg.includes('not supported')
+    msg.includes('overloaded') ||
+    msg.includes('unavailable')
   );
 }
 
-function isTransient(err) {
+function isRateLimited(err) {
   const status = err?.status;
-  return status === 408 || status === 500 || status === 502 || status === 503 || status === 504;
+  const msg = (err?.message || '').toLowerCase();
+  return (
+    status === 429 ||
+    msg.includes('quota') ||
+    msg.includes('rate limit') ||
+    msg.includes('resource has been exhausted') ||
+    msg.includes('too many requests')
+  );
 }
 
 async function generateOnce(apiKey, modelName, prompt) {
@@ -104,44 +109,67 @@ async function generateOnce(apiKey, modelName, prompt) {
   const result = await model.generateContent(prompt);
   const text = result.response.text();
   if (!text?.trim()) {
-    throw new Error('No response generated from AI model');
+    throw new Error('Empty response from AI model');
   }
   return text;
 }
 
-function maskKey(apiKey) {
-  if (apiKey.length <= 8) return '***';
-  return `${apiKey.slice(0, 4)}…${apiKey.slice(-4)}`;
+function maskKey(k) {
+  if (!k || k.length <= 8) return '***';
+  return `${k.slice(0, 4)}…${k.slice(-4)}`;
 }
 
-function toUserFacingError(failures) {
-  const messages = failures.map((f) => f.err?.message || '').join(' ').toLowerCase();
-  const statuses = failures.map((f) => f.err?.status);
-
+function buildUserFacingError(failures) {
   const allKeyFailures = failures.length > 0 && failures.every((f) => isKeyFailure(f.err));
   if (allKeyFailures) {
-    console.error('[Gemini] All API keys rejected. Go to https://aistudio.google.com/apikey and generate new keys, then update GEMINI_API_KEY in your .env / Render environment.');
+    console.error(
+      '[Gemini] All API keys are invalid/revoked. ' +
+      'Go to https://aistudio.google.com/apikey → create a new key → ' +
+      'update GEMINI_API_KEY in Render dashboard (Environment tab) and redeploy.'
+    );
     return 'AI_KEY_INVALID';
   }
 
-  if (messages.includes('quota') || messages.includes('rate limit') || statuses.includes(429)) {
-    return 'AI_QUOTA_EXCEEDED';
-  }
-
-  if (messages.includes('safety') || messages.includes('blocked')) {
-    return 'AI_SAFETY_BLOCK';
-  }
+  const anyRateLimit = failures.some((f) => isRateLimited(f.err));
+  if (anyRateLimit) return 'AI_RATE_LIMITED';
 
   return 'AI_UNAVAILABLE';
 }
 
+/**
+ * Try one (key, model) pair with up to `maxAttempts` retries on rate-limit errors.
+ */
+async function generateWithRetry(apiKey, modelName, prompt, maxAttempts = 3) {
+  let lastErr;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await generateOnce(apiKey, modelName, prompt);
+    } catch (err) {
+      lastErr = err;
+
+      if (isRateLimited(err)) {
+        const waitMs = attempt * 2500; // 2.5s, 5s, 7.5s
+        console.warn(
+          `[Gemini] Rate-limited on key=${maskKey(apiKey)} model=${modelName}. ` +
+          `Attempt ${attempt}/${maxAttempts}. Waiting ${waitMs}ms before retry...`
+        );
+        if (attempt < maxAttempts) {
+          await sleep(waitMs);
+          continue;
+        }
+      }
+      throw err;
+    }
+  }
+  throw lastErr;
+}
+
 export async function generateWithGemini(toolId, userInput) {
   if (!VALID_TOOL_IDS.includes(toolId)) {
-    throw new Error(`Invalid tool type: ${toolId}`);
+    throw new Error(`Invalid tool: ${toolId}`);
   }
-
   if (!userInput?.trim()) {
-    throw new Error('User input is required');
+    throw new Error('Input is required');
   }
 
   const apiKeys = getApiKeys();
@@ -150,39 +178,44 @@ export async function generateWithGemini(toolId, userInput) {
     throw new Error('AI_NOT_CONFIGURED');
   }
 
-  const templateFn = PROMPT_TEMPLATES[toolId];
-  const prompt = templateFn(userInput.trim());
+  const prompt = PROMPT_TEMPLATES[toolId](userInput.trim());
   const models = getModelCandidates();
   const failures = [];
 
   for (const apiKey of apiKeys) {
-    for (let modelIndex = 0; modelIndex < models.length; modelIndex++) {
-      const modelName = models[modelIndex];
+    for (let mi = 0; mi < models.length; mi++) {
+      const modelName = models[mi];
       try {
-        const result = await generateOnce(apiKey, modelName, prompt);
+        const result = await generateWithRetry(apiKey, modelName, prompt);
         if (failures.length > 0) {
-          console.log(`[Gemini] Succeeded on key=${maskKey(apiKey)} model=${modelName} after ${failures.length} failure(s)`);
+          console.log(
+            `[Gemini] Success on key=${maskKey(apiKey)} model=${modelName} after ${failures.length} failure(s).`
+          );
         }
         return result;
       } catch (err) {
         failures.push({ key: maskKey(apiKey), model: modelName, err });
-        console.warn(`[Gemini] key=${maskKey(apiKey)} model=${modelName}: ${err.message?.slice(0, 120)}`);
+        console.warn(
+          `[Gemini] FAILED key=${maskKey(apiKey)} model=${modelName}: ${err.message?.slice(0, 120)}`
+        );
 
-        // Key is invalid — skip remaining models for this key, try next key
+        // Key is dead — skip remaining models for this key
         if (isKeyFailure(err)) {
-          console.warn(`[Gemini] Key ${maskKey(apiKey)} appears invalid/revoked. Trying next key if available.`);
+          console.warn(`[Gemini] Key ${maskKey(apiKey)} is invalid. Moving to next key.`);
           break;
         }
 
-        // Model-level issue — try next model
-        const lastModel = modelIndex === models.length - 1;
-        if (lastModel) break; // no more models to try
+        // Rate-limited on all retries AND this is the last model — give up on this key
+        if (isRateLimited(err) && mi === models.length - 1) break;
 
-        const shouldRetryNextModel = isModelRetryable(err) || isTransient(err);
-        if (!shouldRetryNextModel) break;
+        // Model-level issue — try next model
+        if (isModelRetryable(err)) continue;
+
+        // Unknown error on last model — move to next key
+        if (mi === models.length - 1) break;
       }
     }
   }
 
-  throw new Error(toUserFacingError(failures));
+  throw new Error(buildUserFacingError(failures));
 }
