@@ -9,6 +9,20 @@ import { isProActive } from '../utils/plan.js';
 const router = Router();
 const FREE_LIMIT = parseInt(process.env.FREE_DAILY_LIMIT || '5', 10);
 
+// Human-friendly messages for error codes from gemini.js
+const AI_ERROR_MESSAGES = {
+  AI_NOT_CONFIGURED:
+    'The AI service is not set up on the server yet. The admin needs to add a valid GEMINI_API_KEY.',
+  AI_KEY_INVALID:
+    'The AI service credentials have expired. Please contact support.',
+  AI_QUOTA_EXCEEDED:
+    'The AI is temporarily overloaded. Please wait a minute and try again.',
+  AI_SAFETY_BLOCK:
+    'This content could not be generated. Try rephrasing your input.',
+  AI_UNAVAILABLE:
+    'Sorry for the inconvenience, but the AI is not working at this time. Please try again shortly.',
+};
+
 router.post('/', requireAuth, checkUsageLimit, async (req, res) => {
   try {
     const { toolId, input } = req.body;
@@ -16,7 +30,7 @@ router.post('/', requireAuth, checkUsageLimit, async (req, res) => {
     if (!toolId || !VALID_TOOL_IDS.includes(toolId)) {
       return res.status(400).json({
         error: 'Invalid toolId',
-        validTools: VALID_TOOL_IDS,
+        message: 'The selected tool is not valid.',
       });
     }
 
@@ -38,10 +52,16 @@ router.post('/', requireAuth, checkUsageLimit, async (req, res) => {
       },
     });
   } catch (err) {
+    const code = err.message;
+    const userMessage =
+      AI_ERROR_MESSAGES[code] ||
+      'Sorry for the inconvenience, but the AI is not working at this time. Please try again shortly.';
+
     console.error('Generate error:', err.message);
+
     res.status(500).json({
       error: 'Generation failed',
-      message: err.message || 'Unable to generate response. Please try again.',
+      message: userMessage,
     });
   }
 });

@@ -12,7 +12,6 @@ function normalizeKey(raw) {
   return raw.trim();
 }
 
-/** Primary + optional backup keys (deduplicated, non-empty). */
 export function getApiKeys() {
   const candidates = [
     process.env.GEMINI_API_KEY,
@@ -29,24 +28,43 @@ export function isGeminiConfigured() {
 }
 
 function getModelCandidates() {
-  const preferred = process.env.GEMINI_MODEL?.trim();
-  if (preferred) {
-    return [preferred, 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash-lite'];
-  }
-  return ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash-lite'];
+  // gemini-2.0-flash is most stable and widely available on free tier — always try it first
+  return [
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+    'gemini-2.0-flash-lite',
+  ];
 }
 
+/**
+ * True only when the API key itself is invalid/revoked.
+ * A 403 on a specific model (e.g. model not in free tier) is NOT a key failure —
+ * we should still try the next model with the same key.
+ */
 function isKeyFailure(err) {
   const status = err?.status;
   const msg = (err?.message || '').toLowerCase();
+
+  // 401 is always a key failure
+  if (status === 401) return true;
+
+  // 403 is only a key failure if the message explicitly says so
+  if (status === 403) {
+    return (
+      msg.includes('api_key_invalid') ||
+      msg.includes('api key not valid') ||
+      msg.includes('api key was reported') ||
+      msg.includes('api key expired') ||
+      msg.includes('invalid api key')
+    );
+  }
+
   return (
-    status === 401 ||
-    status === 403 ||
     msg.includes('api_key_invalid') ||
     msg.includes('api key not valid') ||
     msg.includes('api key was reported') ||
     msg.includes('api key expired') ||
-    msg.includes('permission denied')
+    msg.includes('invalid api key')
   );
 }
 
@@ -54,14 +72,17 @@ function isModelRetryable(err) {
   const status = err?.status;
   const msg = (err?.message || '').toLowerCase();
   return (
-    status === 404 ||
-    status === 429 ||
-    status === 503 ||
+    status === 403 || // model permission — try next model
+    status === 404 || // model not found — try next model
+    status === 429 || // quota/rate limit — try next model
+    status === 503 || // overloaded
     msg.includes('not found') ||
     msg.includes('quota') ||
     msg.includes('rate limit') ||
     msg.includes('overloaded') ||
-    msg.includes('unavailable')
+    msg.includes('unavailable') ||
+    msg.includes('permission') ||
+    msg.includes('not supported')
   );
 }
 
@@ -95,24 +116,23 @@ function maskKey(apiKey) {
 
 function toUserFacingError(failures) {
   const messages = failures.map((f) => f.err?.message || '').join(' ').toLowerCase();
+  const statuses = failures.map((f) => f.err?.status);
 
   const allKeyFailures = failures.length > 0 && failures.every((f) => isKeyFailure(f.err));
   if (allKeyFailures) {
-    console.error(
-      '[Gemini] All configured API keys failed authentication. Add fresh keys at https://aistudio.google.com/apikey'
-    );
-    return 'AI service is temporarily unavailable. Please try again in a few minutes.';
+    console.error('[Gemini] All API keys rejected. Go to https://aistudio.google.com/apikey and generate new keys, then update GEMINI_API_KEY in your .env / Render environment.');
+    return 'AI_KEY_INVALID';
   }
 
-  if (messages.includes('429') || messages.includes('quota') || messages.includes('rate limit')) {
-    return 'AI is busy right now. Please wait a minute and try again.';
+  if (messages.includes('quota') || messages.includes('rate limit') || statuses.includes(429)) {
+    return 'AI_QUOTA_EXCEEDED';
   }
 
   if (messages.includes('safety') || messages.includes('blocked')) {
-    return 'Content could not be generated for this input. Try rephrasing your request.';
+    return 'AI_SAFETY_BLOCK';
   }
 
-  return 'Generation failed. Please try again in a moment.';
+  return 'AI_UNAVAILABLE';
 }
 
 export async function generateWithGemini(toolId, userInput) {
@@ -126,9 +146,8 @@ export async function generateWithGemini(toolId, userInput) {
 
   const apiKeys = getApiKeys();
   if (apiKeys.length === 0) {
-    throw new Error(
-      'AI service is not configured. Set GEMINI_API_KEY (and optionally GEMINI_API_KEY_2) on the server.'
-    );
+    console.error('[Gemini] No API keys configured. Set GEMINI_API_KEY in your environment.');
+    throw new Error('AI_NOT_CONFIGURED');
   }
 
   const templateFn = PROMPT_TEMPLATES[toolId];
@@ -140,22 +159,27 @@ export async function generateWithGemini(toolId, userInput) {
     for (let modelIndex = 0; modelIndex < models.length; modelIndex++) {
       const modelName = models[modelIndex];
       try {
-        return await generateOnce(apiKey, modelName, prompt);
+        const result = await generateOnce(apiKey, modelName, prompt);
+        if (failures.length > 0) {
+          console.log(`[Gemini] Succeeded on key=${maskKey(apiKey)} model=${modelName} after ${failures.length} failure(s)`);
+        }
+        return result;
       } catch (err) {
         failures.push({ key: maskKey(apiKey), model: modelName, err });
-        console.warn(
-          `[Gemini] key=${maskKey(apiKey)} model=${modelName}: ${err.message?.slice(0, 120)}`
-        );
+        console.warn(`[Gemini] key=${maskKey(apiKey)} model=${modelName}: ${err.message?.slice(0, 120)}`);
 
+        // Key is invalid — skip remaining models for this key, try next key
         if (isKeyFailure(err)) {
+          console.warn(`[Gemini] Key ${maskKey(apiKey)} appears invalid/revoked. Trying next key if available.`);
           break;
         }
 
+        // Model-level issue — try next model
         const lastModel = modelIndex === models.length - 1;
-        const canRetryModel = isModelRetryable(err) || isTransient(err);
-        if (!canRetryModel || lastModel) {
-          break;
-        }
+        if (lastModel) break; // no more models to try
+
+        const shouldRetryNextModel = isModelRetryable(err) || isTransient(err);
+        if (!shouldRetryNextModel) break;
       }
     }
   }
