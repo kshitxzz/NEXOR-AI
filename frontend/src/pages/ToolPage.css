@@ -139,3 +139,19 @@
     grid-template-columns: 1fr;
   }
 }
+
+.cold-start-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+  max-width: 260px;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.output-error-actions {
+  display: flex;
+  gap: 0.65rem;
+  margin-top: 0.85rem;
+  flex-wrap: wrap;
+}

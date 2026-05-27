@@ -319,7 +319,7 @@ export default function Settings() {
                 <div className="settings-block">
                   <h3>Log out</h3>
                   <p className="field-hint">Sign out of NexorAI on this device.</p>
-                  <button type="button" className="btn btn-outline" onClick={handleSignOut}>
+                  <button type="button" className="btn btn-outline btn-sm" onClick={handleSignOut}>
                     Log Out
                   </button>
                 </div>
