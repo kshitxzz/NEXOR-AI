@@ -1,18 +1,17 @@
 import { useState, useRef } from 'react';
-import { Link, useParams, Navigate, useNavigate } from 'react-router-dom';
+import { Link, useParams, Navigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { getToolById } from '../data/tools';
 import { generateContent } from '../services/api';
 import { useUser } from '../context/UserContext';
 import './ToolPage.css';
 
-const COLD_START_DELAY_MS = 6000; // Show cold-start hint after 6s
+const COLD_START_DELAY_MS = 7000;
 
 export default function ToolPage() {
   const { toolId } = useParams<{ toolId: string }>();
   const tool = toolId ? getToolById(toolId) : undefined;
   const { plan, refreshPlan } = useUser();
-  const navigate = useNavigate();
 
   const [input, setInput] = useState('');
   const [output, setOutput] = useState('');
@@ -37,59 +36,57 @@ export default function ToolPage() {
     setOutput('');
     setIsColdStart(false);
 
-    // Show cold-start hint if the request takes too long
-    coldStartTimer.current = setTimeout(() => {
-      setIsColdStart(true);
-    }, COLD_START_DELAY_MS);
+    coldStartTimer.current = setTimeout(() => setIsColdStart(true), COLD_START_DELAY_MS);
 
     try {
       const result = await generateContent(tool.id, input);
 
       if (coldStartTimer.current) clearTimeout(coldStartTimer.current);
       setIsColdStart(false);
-
       setOutput(result.output);
-      await refreshPlan();
+
+      // Refresh plan in the background — don't await so it never blocks or redirects
+      refreshPlan().catch(() => {});
     } catch (err) {
       if (coldStartTimer.current) clearTimeout(coldStartTimer.current);
       setIsColdStart(false);
 
-      const e = err as Error & { upgrade?: boolean; planExpired?: boolean };
+      const e = err as Error & { upgrade?: boolean; planExpired?: boolean; status?: number };
 
-      if (e.planExpired) {
-        navigate('/pricing', {
-          replace: true,
-          state: { subscriptionExpired: true },
-        });
+      // Daily limit reached
+      if (e.upgrade && !e.planExpired) {
+        setError('You have reached your daily free limit. Upgrade to Pro for unlimited generations.');
         return;
       }
 
-      let msg = e.message || 'Something went wrong. Please try again.';
+      // Plan expired — show inline message instead of auto-redirecting
+      if (e.planExpired) {
+        setError('Your Pro plan has ended. Renew your subscription to keep using all tools.');
+        return;
+      }
 
-      // Make network / server-down errors friendlier
+      // Network / server unreachable
+      const msg = e.message || '';
       if (
+        e.status === 503 ||
         msg.toLowerCase().includes('cannot reach') ||
         msg.toLowerCase().includes('failed to fetch') ||
         msg.toLowerCase().includes('networkerror') ||
         msg.toLowerCase().includes('backend is not connected')
       ) {
-        msg =
-          'The server is taking too long to respond. It may be waking up — please wait a moment and try again.';
+        setError(
+          'Sorry for the inconvenience, but the AI is not working at this time. The server may be starting up — please try again in a moment.'
+        );
+        return;
       }
 
-      if (e.upgrade) {
-        msg = `Daily limit reached. Upgrade to Pro for unlimited generations.`;
-      }
-
-      setError(msg);
+      // All other errors (from backend AI_ERROR_MESSAGES or generic)
+      setError(
+        msg || 'Sorry for the inconvenience, but the AI is not working at this time. Please try again shortly.'
+      );
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleRetry = () => {
-    setError('');
-    handleGenerate();
   };
 
   const limitReached =
@@ -161,10 +158,10 @@ export default function ToolPage() {
             {loading && (
               <div className="output-loading">
                 <div className="loader" />
-                <p>Generating with Gemini AI...</p>
+                <p>Generating with AI...</p>
                 {isColdStart && (
                   <p className="cold-start-hint">
-                    The server is waking up — this may take up to 30 seconds on first use. Hang tight!
+                    The server is waking up from sleep — this can take up to 30 seconds on first use. Hang tight!
                   </p>
                 )}
               </div>
@@ -174,13 +171,10 @@ export default function ToolPage() {
               <div className="output-error">
                 <p>{error}</p>
                 <div className="output-error-actions">
-                  <button
-                    className="btn btn-outline btn-sm"
-                    onClick={handleRetry}
-                  >
+                  <button className="btn btn-outline btn-sm" onClick={handleGenerate}>
                     Try Again
                   </button>
-                  {error.includes('Upgrade') && (
+                  {(error.includes('Upgrade') || error.includes('plan has ended')) && (
                     <Link to="/pricing" className="btn btn-primary btn-sm">
                       View Plans
                     </Link>
