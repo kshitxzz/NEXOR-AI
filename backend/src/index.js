@@ -78,6 +78,17 @@ app.get('/api/health', async (_, res) => {
   });
 });
 
+// Test endpoint — visits this URL to instantly check if your Gemini key is alive
+app.get('/api/health/gemini', async (_, res) => {
+  try {
+    const { generateWithGemini } = await import('./services/gemini.js');
+    const result = await generateWithGemini('blog_post', 'Write one sentence about technology.');
+    res.json({ status: 'ok', working: true, sample: result.slice(0, 120) });
+  } catch (err) {
+    res.status(500).json({ status: 'error', working: false, reason: err.message });
+  }
+});
+
 app.use('/api/generate', generateRouter);
 app.use('/api/payment', paymentRouter);
 app.use('/api/user', userRouter);
